@@ -274,9 +274,23 @@ const orgRenderer = unified()
   .use(rehypeStringify);
 
 /** Render a source string or an already-parsed page OAST through unified/reorg. */
-export function renderOrg(sourceOrTree) {
+export function renderOrg(sourceOrTree, context = null) {
   const tree = typeof sourceOrTree === 'string' ? orgParser.parse(normalizeOrg(sourceOrTree)) : sourceOrTree;
-  return orgRenderer.stringify(orgRenderer.runSync(tree));
+  const html = orgRenderer.runSync(tree);
+  if (context) {
+    const resolveImages = node => {
+      if (node.tagName === 'img' && node.properties?.src) {
+        const src = node.properties.src;
+        if (!/^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(src)) {
+          try { node.properties.src = sourceURL(context, src.replace(/^\.\//, '')); }
+          catch { delete node.properties.src; }
+        }
+      }
+      for (const child of node.children || []) resolveImages(child);
+    };
+    resolveImages(html);
+  }
+  return orgRenderer.stringify(html);
 }
 
 let pelePromise,mathPromise;
@@ -443,7 +457,7 @@ function startViewer() {
     $('chapter').textContent = step.chapter; $('step-label').textContent = `${String(index + 1).padStart(2, '0')} / ${steps.length}`;
     disposeStory();
     const content = document.createElement('div'); content.className = 'story-content';
-    content.innerHTML = `<div class="eyebrow">${escape(step.kicker)}</div><h1>${escape(step.title)}</h1>${renderOrg(step.content)}`;
+    content.innerHTML = `<div class="eyebrow">${escape(step.kicker)}</div><h1>${escape(step.title)}</h1>${renderOrg(step.content, ctx)}`;
     $('story').replaceChildren(content); disposeStory = enhanceStory(content); $('story-scroll').scrollTop = 0;
     $('prev').disabled = index === 0; $('next').disabled = index === steps.length - 1;
     $('next-label').textContent = index === steps.length - 1 ? 'END OF TOUR' : 'UP NEXT';

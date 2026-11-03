@@ -99,3 +99,10 @@ test('standard double-bracket approximation preserves TeX through the pipeline',
 \lbrack\!\lbrack c\rbrack\!\rbrack
 $$`);assert(html.includes('\\lbrack\\!\\lbrack'));assert(html.includes('\\rbrack\\!\\rbrack'));assert(!html.includes('\\llbracket'));assert(!html.includes('\\rrbracket'));
 });
+
+test('Org images resolve against the toured repository at the pinned commit', () => {
+ const ctx = {repository:'tani/lean-qasm', sha:'a'.repeat(40)};
+ assert(renderOrg('[[file:docs/tour/bell.svg]]',ctx).includes(`src="https://cdn.jsdelivr.net/gh/tani/lean-qasm@${ctx.sha}/docs/tour/bell.svg"`));
+ assert(!renderOrg('[[file:../outside.svg]]',ctx).includes('src='));
+ assert(renderOrg('[[https://example.com/circuit.svg]]',ctx).includes('src="https://example.com/circuit.svg"'));
+});
