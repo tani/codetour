@@ -7,4 +7,18 @@
 <footer class="timeline"><button id="index-button" aria-label="Open contents" disabled><span id="counter">—</span><span class="total">/ —</span></button><div id="progress" aria-label="All pages"></div><span class="key-hint"><kbd>←</kbd><kbd>→</kbd> to navigate</span></footer>
 <dialog id="toc"><div class="dialog-head"><div><small>THE WALKTHROUGH</small><h2 id="repo-title">Follow the code</h2></div><button id="close-toc" aria-label="Close contents">✕</button></div><div id="toc-list"></div><div class="dialog-foot"><label class="load-org">Load TOUR.org<input id="org-file" type="file" accept=".org,text/plain" hidden></label><span>FILE / LINES optional for text-only pages</span></div></dialog>
 <dialog id="repository-dialog"><div class="dialog-head"><div><small>CHOOSE A CODEBASE</small><h2>Open a repository</h2></div><button id="close-repository" aria-label="Close repository dialog">✕</button></div><form id="repository-form"><label for="repository-url">GitHub repository URL</label><input id="repository-url" type="url" required placeholder="https://github.com/owner/repository" autocomplete="off" spellcheck="false"><p>Use the default branch, /tree/branch-or-tag, /commit/SHA, or ?ref=feature%2Fbranch.</p><p id="repository-error" role="alert"></p><button class="action-button" type="submit">Open tour →</button></form></dialog>
+<script type="importmap">
+{
+  "imports": {
+    "unified": "https://cdn.jsdelivr.net/npm/unified@11.0.5/+esm",
+    "@orgajs/reorg-parse": "https://cdn.jsdelivr.net/npm/@orgajs/reorg-parse@4.4.2/+esm",
+    "@orgajs/reorg-rehype": "https://cdn.jsdelivr.net/npm/@orgajs/reorg-rehype@4.3.13/+esm",
+    "rehype-stringify": "https://cdn.jsdelivr.net/npm/rehype-stringify@10.0.1/+esm",
+    "rehype-sanitize": "https://cdn.jsdelivr.net/npm/rehype-sanitize@6.0.0/+esm",
+    "shiki": "https://cdn.jsdelivr.net/npm/shiki@3.13.0/+esm",
+    "pele": "https://cdn.jsdelivr.net/npm/pele@1.13.0/dist/pele.js",
+    "mathjax": "https://cdn.jsdelivr.net/npm/mathjax@4.0.0/tex-svg.js"
+  }
+}
+</script>
 <script type="module" src="script.js"></script></body></html>

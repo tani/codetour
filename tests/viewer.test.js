@@ -38,7 +38,7 @@ test('Mermaid, math and code are isolated from Org emphasis and raw HTML',()=>{
 
 \[
 \begin{matrix}a & b \\ c & d\end{matrix}
-\]`);assert(math.includes('x = y * z = w'));assert(!math.includes('<strong>'));assert(!math.includes('<code>'));assert(math.includes('a &amp; b \\'));
+\]`);assert(math.includes('x = y * z = w'));assert(!math.includes('<strong>'));assert(!math.includes('<code>'));assert(math.replaceAll('&#x26;', '&amp;').includes('a &amp; b \\'));
  for(const body of ['#+begin_src mermaid\nflowchart LR\n A-->B\n#+end_src','```mermaid\nflowchart LR\n A-->B\n```'])assert(renderOrg(body).includes('class="mermaid-block"'));
  const code=renderOrg('#+begin_src text\n<script>alert(1)</script>\n\\(not math\\)\n#+end_src');assert(!code.includes('<script>'));assert(!code.includes('math-inline'));
 });
@@ -56,4 +56,32 @@ test('revision resolution uses HEAD or the complete ref and skips the API for fu
  }
  const count=calls.length;assert.equal((await resolveTarget(parseTarget('#https://github.com/tani/repo/commit/'+sha),getJSON)).sha,sha);assert.equal(calls.length,count);
  await assert.rejects(()=>resolveTarget(parseTarget('#https://github.com/tani/repo'),async()=>({sha:'bad'})));
+});
+
+test('reorg extracts metadata and renders nested Org structures',()=>{
+ const [page]=parseOrg('#+TITLE: Demo\n* *Welcome*\n:PROPERTIES:\n:CHAPTER: INTRO\n:KICKER: READ\n:END:\n** Details\n- item\n  - child\n\n| A | B |\n|---+---|\n| 1 | 2 |\n\n[[https://example.com][Reference]]');
+ assert.equal(page.title,'Welcome');assert.equal(page.chapter,'INTRO');assert.equal(page.kicker,'READ');
+ const html=renderOrg(page.content);assert.match(html,/<h2/);assert.match(html,/<table>/);assert.match(html,/<ul>/);assert.match(html,/href="https:\/\/example.com"/);assert(!html.includes(':PROPERTIES:'));
+});
+test('sanitization removes scripts, events and unsafe links from Org exports',()=>{
+ const html=renderOrg('#+begin_export html\n<script>alert(1)</script><img src="x" onerror="alert(1)"><a href="javascript:alert(1)">click</a><p>Safe</p>\n#+end_export');
+ assert(!html.includes('<script'));assert(!html.includes('onerror'));assert(!html.includes('javascript:'));assert(html.includes('Safe'));
+});
+test('internal links agree with sanitized heading identifiers',()=>{
+ const html=renderOrg('** Details\n[[*Details][Jump]]');assert.match(html,/id="user-content-details"/);assert.match(html,/href="#user-content-details"/);
+});
+test('display equations and literal block headings survive reorg',()=>{
+ const html=renderOrg(String.raw`\begin{align*}
+x &= y \\
+z &= w
+\end{align*}`);assert(html.includes('math-display'));assert(html.includes('\\begin{align*}'));assert(html.includes('\\end{align*}'));
+ const code=renderOrg('```text\n* heading\n#+end_src\n,* literal comma\n```');assert(code.includes('* heading'));assert(code.includes('#+end_src'));assert(code.includes(',* literal comma'));assert(!code.includes('<h1'));
+});
+test('import map owns the pinned browser dependencies and matches test dependencies',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const html=await readFile(new URL('../index.html',import.meta.url),'utf8');const map=JSON.parse(html.match(/<script type="importmap">([\s\S]*?)<\/script>/)[1]).imports;
+ const pkg=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8'));
+ for(const [name,version] of Object.entries(pkg.devDependencies))assert(map[name].includes('@'+version+'/'));
+ for(const name of ['unified','@orgajs/reorg-parse','@orgajs/reorg-rehype','rehype-sanitize','rehype-stringify','shiki','pele','mathjax'])assert(map[name]);
+ const script=await readFile(new URL('../script.js',import.meta.url),'utf8');assert(!/import\(['"]https:/.test(script));assert(script.includes("import.meta.resolve('mathjax')"));
 });

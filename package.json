@@ -5,6 +5,17 @@
   "type": "module",
   "description": "A buildless Org-based code tour viewer for public GitHub repositories",
   "license": "Unlicense",
-  "scripts": { "test": "node --test" },
-  "engines": { "node": ">=20" }
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@orgajs/reorg-parse": "4.4.2",
+    "@orgajs/reorg-rehype": "4.3.13",
+    "rehype-sanitize": "6.0.0",
+    "rehype-stringify": "10.0.1",
+    "unified": "11.0.5"
+  }
 }

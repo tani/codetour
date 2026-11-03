@@ -23,3 +23,8 @@
 .example-link{display:inline-block;font-size:12px;text-decoration:underline;text-underline-offset:4px}
 #repository-form{padding:26px 30px}#repository-form label{display:block;font-size:12px;margin-bottom:12px}#repository-url{width:100%;border:1px solid #cbd3c0;border-radius:4px;background:#fffefa;color:var(--ink);font:13px var(--mono);padding:14px 12px}#repository-form p{font-size:12px;line-height:1.8;color:#77846c}#repository-error{color:#9a503a!important}
 @media(max-width:700px){.header-right{gap:14px}.header-right .live,.repo{display:none}.brand-sub{display:none}.header-right button{font-size:11px}.brand strong{font-size:16px}header{padding-left:18px;padding-right:18px}}
+/* Standard Org structures emitted by reorg/rehype. */
+article table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.7;margin:22px 0}
+article th,article td{padding:9px 12px;border:1px solid var(--line);text-align:left}article th{background:#edf0e5}
+article a{color:#48603c;text-decoration:underline;text-underline-offset:3px}article blockquote{border-left:2px solid #a7b597;margin:20px 0;padding:0 18px;color:#64725b}
+article ol{padding-left:22px;color:#626f5e;line-height:2}

@@ -25,7 +25,7 @@ Serve these three files together on any static HTTPS host:
 - `script.js`
 - `style.css`
 
-There is no build step, server, package install, API token, or bundled example tour. Opening the viewer without a fragment shows a repository picker. The optional `package.json` exists only for development tests. GitHub Pages can serve the files if enabled separately in repository settings.
+There is no build step, server, production package install, API token, or bundled example tour. Opening the viewer without a fragment shows a repository picker. The `type="importmap"` JSON in `index.html` owns the exact browser dependency URLs. `script.js` uses bare imports for unified, reorg, rehype, Shiki, and Pele. MathJax is a classic-script component: its script URL is resolved from the same map with `import.meta.resolve('mathjax')`. Change versions in the import map to update production dependencies. `package.json` and `package-lock.json` pin the equivalent parser/render dependencies for Node tests; a test checks that their versions match the map. GitHub Pages can serve the files if enabled separately in repository settings.
 
 Source and runtime libraries need internet access. Public API requests are subject to GitHub's unauthenticated rate limit. Private repositories are not supported. Fonts have system fallbacks; syntax-highlighting and diagram/math load failures retain readable source.
 
@@ -59,7 +59,7 @@ The same representation connects several consumers.
 
 `LINES` is a 1-based inclusive range. `FILENAME`/`RANGE` are accepted aliases. `LANGUAGE` (or `LANG`) optionally overrides syntax detection; otherwise CodeTour recognizes common file extensions. Unsupported languages appear as plain text. File paths are relative to the repository root and may contain spaces or Unicode; absolute paths and parent traversal are rejected. A partial or malformed source reference is an error, rather than silently becoming a text-only page.
 
-The lightweight Org renderer supports paragraphs, nested headings, simple unordered lists, inline code, emphasis, source blocks, and display mathematics. It is not a complete Org exporter. Raw HTML is escaped. The contents dialog can preview a local Org file against the repository revision already open; this stays in memory and does not modify GitHub.
+Org is parsed with unified and `@orgajs/reorg-parse`. Page boundaries and properties come from the parsed Org AST. `@orgajs/reorg-rehype` converts that AST to HTML nodes, `rehype-sanitize` filters them, and `rehype-stringify` serializes the result. Paragraphs, nested headings, lists, tables, links, emphasis, source blocks, and LaTeX use this pipeline. Small compatibility normalization preserves Markdown code fences and display-math delimiters from earlier CodeTour versions. Raw HTML exports are sanitized; scripts, event handlers, and unsafe link schemes are removed. This is an Org viewer rather than an Emacs exporter. The contents dialog can preview a local Org file against the repository revision already open; this stays in memory and does not modify GitHub.
 
 ### Diagrams and equations
 
@@ -97,15 +97,21 @@ Scrolling, selecting text, and interacting with diagram controls do not advance 
 
 ```sh
 python3 -m http.server 8000
-node --test
+
+# In another terminal, install development dependencies and run the tests:
+npm ci
+npm test
 ```
 
-Visit `http://localhost:8000/` with a repository fragment. Tests use Node's built-in runner and need no dependencies. They cover URL and revision selection, page navigation, immutable source URLs, Org page types, TeX preservation, Mermaid blocks, and code isolation.
+Visit `http://localhost:8000/` with a repository fragment. Tests use Node's built-in runner with the pinned unified/reorg/rehype development dependencies. They cover URL and revision selection, page navigation, immutable source URLs, Org page types, TeX preservation, Mermaid blocks, code isolation, Org tables and links, sanitization, and import-map consistency.
 
 ## License and dependencies
 
 CodeTour is released under the existing [Unlicense](LICENSE). Libraries are loaded from jsDelivr rather than vendored; their licenses remain separate:
 
+- [unified](https://github.com/unifiedjs/unified), 11.0.5 — MIT
+- [reorg](https://github.com/orgapp/orgajs), reorg-parse 4.4.2 / reorg-rehype 4.3.13 — MIT
+- [rehype](https://github.com/rehypejs/rehype), stringify 10.0.1 / sanitize 6.0.0 — MIT
 - [Shiki](https://github.com/shikijs/shiki), 3.13.0 — MIT
 - [Pele](https://github.com/obsidianmd/pele), 1.13.0 — MIT
 - [MathJax](https://github.com/mathjax/MathJax), 4.0.0 — Apache-2.0
