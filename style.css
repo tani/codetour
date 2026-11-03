@@ -28,3 +28,7 @@ article table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.7
 article th,article td{padding:9px 12px;border:1px solid var(--line);text-align:left}article th{background:#edf0e5}
 article a{color:#48603c;text-decoration:underline;text-underline-offset:3px}article blockquote{border-left:2px solid #a7b597;margin:20px 0;padding:0 18px;color:#64725b}
 article ol{padding-left:22px;color:#626f5e;line-height:2}
+.repository-entry{margin:26px 0 14px}.repository-entry label{display:block;font-size:13px;margin-bottom:12px}
+.repository-entry-row{display:flex;gap:12px;align-items:stretch}.repository-entry input{flex:1;min-width:0;border:1px solid #cbd3c0;border-radius:4px;background:#fffefa;color:var(--ink);font:14px var(--mono);padding:14px 12px}.repository-entry .action-button{margin:0;white-space:nowrap}
+article .repository-help{font-size:12px!important;line-height:1.7!important;color:#77846c;margin:12px 0 0}article .repository-error{font-size:12px!important;line-height:1.7!important;color:#9a503a;margin:8px 0 0}.repository-entry input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media(max-width:600px){.repository-entry-row{flex-direction:column}.repository-entry .action-button{align-self:flex-start}}

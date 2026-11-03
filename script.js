@@ -414,7 +414,12 @@ function startViewer() {
     const paragraph = document.createElement('p'); paragraph.textContent = text; content.append(heading, paragraph);
     if (retry) { const b = document.createElement('button'); b.className = 'action-button'; b.textContent = 'Try again'; b.onclick = () => loadFromHash(true); content.append(b); }
     else if (!location.hash || location.hash === '#') {
-      const b = document.createElement('button'); b.className = 'action-button'; b.textContent = 'Open a repository'; b.onclick = openRepository; content.append(b);
+      const form = document.createElement('form'); form.className = 'repository-entry';
+      form.innerHTML = `<label for="home-repository-url">GitHub repository URL</label>
+        <div class="repository-entry-row"><input id="home-repository-url" name="repository" type="url" required placeholder="https://github.com/owner/repository" autocomplete="off" spellcheck="false" aria-describedby="home-repository-help home-repository-error"><button class="action-button" type="submit">Open tour →</button></div>
+        <p id="home-repository-help" class="repository-help">Use a repository URL, /tree/branch-or-tag, /commit/SHA, or ?ref=feature%2Fbranch.</p>
+        <p id="home-repository-error" class="repository-error" data-repository-error role="alert"></p>`;
+      bindRepositoryForm(form); content.append(form);
       const example = document.createElement('a'); example.className = 'example-link'; example.href = '#https://github.com/tani/lean-qasm'; example.textContent = 'Explore the Lean QASM tour ↗'; content.append(example);
     }
     $('story').replaceChildren(content); $('story-scroll').scrollTop = 0;
@@ -450,16 +455,21 @@ function startViewer() {
   function openRepository() { $('repository-url').value = context?.target.url || ''; $('repository-dialog').showModal(); $('repository-url').focus(); }
   $('open-repository').onclick = openRepository;
   $('close-repository').onclick = () => $('repository-dialog').close();
-  $('repository-form').onsubmit = event => {
-    event.preventDefault();
-    try {
-      const target = parseTarget('#' + $('repository-url').value.trim());
-      if (!target) throw Error('Enter a GitHub repository URL.');
-      $('repository-error').textContent = ''; $('repository-dialog').close();
-      const hash = pageFragment(target, target.page);
-      if (location.hash === hash) loadFromHash(true); else location.hash = hash;
-    } catch (error) { $('repository-error').textContent = error.message; }
-  };
+  function bindRepositoryForm(form, onSuccess = () => {}) {
+    form.onsubmit = event => {
+      event.preventDefault();
+      const input = form.querySelector('input[type="url"]');
+      const errorOutput = form.querySelector('[data-repository-error]');
+      try {
+        const target = parseTarget('#' + input.value.trim());
+        if (!target) throw Error('Enter a GitHub repository URL.');
+        errorOutput.textContent = ''; onSuccess();
+        const hash = pageFragment(target, target.page);
+        if (location.hash === hash) loadFromHash(true); else location.hash = hash;
+      } catch (error) { errorOutput.textContent = error.message; }
+    };
+  }
+  bindRepositoryForm($('repository-form'), () => $('repository-dialog').close());
   $('prev').onclick = () => go(index - 1); $('next').onclick = () => go(index + 1);
   const openToc = () => { if (!steps.length) return; $('toc').showModal(); document.querySelector('.toc-step.current')?.scrollIntoView({ block: 'center' }); };
   $('contents').onclick = openToc; $('index-button').onclick = openToc; $('close-toc').onclick = () => $('toc').close();
@@ -479,7 +489,7 @@ function startViewer() {
   });
   $('story').addEventListener('click', event => {
     const link = event.target.closest('a[href^="#"]');
-    if (!link) return;
+    if (!link || /^#https:/i.test(link.getAttribute('href'))) return;
     event.preventDefault();
     const id = link.getAttribute('href').slice(1);
     if (!id) return;
