@@ -59,7 +59,7 @@ The same representation connects several consumers.
 
 `LINES` is a 1-based inclusive range. `FILENAME`/`RANGE` are accepted aliases. `LANGUAGE` (or `LANG`) optionally overrides syntax detection; otherwise CodeTour recognizes common file extensions. Unsupported languages appear as plain text. File paths are relative to the repository root and may contain spaces or Unicode; absolute paths and parent traversal are rejected. A partial or malformed source reference is an error, rather than silently becoming a text-only page.
 
-Org is parsed with unified and `@orgajs/reorg-parse`. Page boundaries and properties come from the parsed Org AST. `@orgajs/reorg-rehype` converts that AST to HTML nodes, `rehype-sanitize` filters them, and `rehype-stringify` serializes the result. Paragraphs, nested headings, lists, tables, links, emphasis, source blocks, and LaTeX use this pipeline. Small compatibility normalization preserves Markdown code fences and display-math delimiters from earlier CodeTour versions. Raw HTML exports are sanitized; scripts, event handlers, and unsafe link schemes are removed. This is an Org viewer rather than an Emacs exporter. The contents dialog can preview a local Org file against the repository revision already open; this stays in memory and does not modify GitHub.
+Org is parsed with unified and `@orgajs/reorg-parse`. Page boundaries and properties come from the parsed Org AST. `@orgajs/reorg-rehype` converts that AST to HTML nodes, `rehype-sanitize` filters them, and `rehype-mathjax/browser` prepares marked equations, and `rehype-stringify` serializes the result. Paragraphs, nested headings, lists, tables, links, emphasis, source blocks, and LaTeX use this pipeline. Compatibility normalization preserves Markdown code fences and math delimiters. The reorg documentation illustrates dollar math, but orga 5.0.0 only tokenizes inline double-dollar or backslash forms; CodeTour adapts single-dollar math outside code before reorg parsing. Code and currency text remain separate from marked math containers. Raw HTML exports are sanitized; scripts, event handlers, and unsafe link schemes are removed. This is an Org viewer rather than an Emacs exporter. The contents dialog can preview a local Org file against the repository revision already open; this stays in memory and does not modify GitHub.
 
 ### Diagrams and equations
 
@@ -72,14 +72,14 @@ flowchart TD
   IR --> Diagram
 #+end_src
 
-Inline math: \(x = y + z\).
+Inline math: $x = y + z$.
 
-\[
+$$
 \frac{a}{b} = \sqrt{2}.
-\]
+$$
 ```
 
-Markdown-style mermaid fences also work. Pele renders diagrams and adapts them to the pane width. A disclosure keeps the original Mermaid source available. LaTeX is rendered by MathJax v4 with inline `\( ... \)` and display `\[ ... \]` delimiters; `$$ ... $$` display blocks and AMS equation/align/gather environments are also accepted. Ordinary source code blocks are excluded from math processing. Diagram-label TeX is not typeset; put equations in the surrounding prose.
+Markdown-style mermaid fences also work. Pele renders diagrams and adapts them to the pane width. A disclosure keeps the original Mermaid source available. Write inline equations as `$...$` and display equations on their own lines between `$$` delimiters. After sanitization, `rehype-mathjax/browser` prepares math for the existing MathJax v4 browser runtime. The browser entry is intentional: the default SVG entry in rehype-mathjax 7 uses MathJax 3 internally. Legacy `\(...\)` / `\[...\]`, math source blocks, and native LaTeX environments remain supported. Ordinary source code blocks are excluded from math processing. Diagram-label TeX is not typeset; put equations in the surrounding prose.
 
 ## Read and navigate
 
@@ -114,6 +114,14 @@ CodeTour is released under the existing [Unlicense](LICENSE). Libraries are load
 - [rehype](https://github.com/rehypejs/rehype), stringify 10.0.1 / sanitize 6.0.0 — MIT
 - [Shiki](https://github.com/shikijs/shiki), 3.13.0 — MIT
 - [Pele](https://github.com/obsidianmd/pele), 1.13.0 — MIT
+- [rehype-mathjax](https://github.com/remarkjs/remark-math/tree/main/packages/rehype-mathjax), 7.1.0 (browser entry) — MIT
 - [MathJax](https://github.com/mathjax/MathJax), 4.0.0 — Apache-2.0
 
 Optional Google Fonts use their respective open font licenses. Repository code and tour text retain the source repository's licenses.
+
+
+### Math notation compatibility
+
+Org syntax and GitHub Flavored Markdown use separate rendering paths. The dollar notation in this tour is intended for both CodeTour and GitHub, but Markdown-only extensions such as dollar/backtick inline math should not be copied into Org. Reorg's [LaTeX documentation](https://orga.js.org/advanced/latex/) and its current tokenizer differ in their single-dollar handling, hence the small compatibility normalization.
+
+For denotation brackets, use standard `\lbrack\!\lbrack` and `\rbrack\!\rbrack` commands rather than relying on optional double-bracket extensions. MathJax is applied only to parsed math containers, so currency symbols and ordinary code are not typeset as equations.

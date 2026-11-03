@@ -2,6 +2,7 @@ import { unified } from 'unified';
 import reorgParse from '@orgajs/reorg-parse';
 import reorgRehype from '@orgajs/reorg-rehype';
 import rehypeStringify from 'rehype-stringify';
+import rehypeMathjaxBrowser from 'rehype-mathjax/browser';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 
 // CodeTour — a buildless, repository-driven source walkthrough.
@@ -81,6 +82,41 @@ export function languageFor(file, explicit) {
     yaml: 'yaml', yml: 'yaml', html: 'html', css: 'css', md: 'markdown', tex: 'latex', sql: 'sql', nix: 'nix', qasm: 'qasm' })[ext] || 'text';
 }
 
+// orga 5 recognizes \(...\) and inline $$...$$, but not single dollars.
+// Adapt single-line $...$ outside code to reorg's native inline-math syntax.
+function normalizeInlineDollars(line) {
+  let output = '';
+  for (let i = 0; i < line.length;) {
+    if (line[i] === '\\') {
+      if (line[i + 1] === '(') {
+        const end = line.indexOf('\\)', i + 2);
+        if (end !== -1) { output += line.slice(i, end + 2); i = end + 2; continue; }
+      }
+      output += line.slice(i, i + 2); i += 2; continue;
+    }
+    if (['=', '~', '`'].includes(line[i]) && (i === 0 || /[\s(\[{]/.test(line[i - 1]))) {
+      const end = line.indexOf(line[i], i + 1);
+      if (end > i + 1) { output += line.slice(i, end + 1); i = end + 1; continue; }
+    }
+    if (line.slice(i, i + 2) === '$$') {
+      const end = line.indexOf('$$', i + 2);
+      if (end !== -1) { output += line.slice(i, end + 2); i = end + 2; continue; }
+    }
+    if (line[i] === '$' && line[i + 1] && !/[\s$]/.test(line[i + 1])) {
+      let end = i + 1;
+      for (; end < line.length; end++) {
+        if (line[end] === '\\') { end++; continue; }
+        if (line[end] === '$') break;
+      }
+      if (end < line.length && !/\s/.test(line[end - 1]) && (end + 1 === line.length || /[\s.,;:!?)}\]]/.test(line[end + 1]))) {
+        output += '\\(' + line.slice(i + 1, end) + '\\)'; i = end + 1; continue;
+      }
+    }
+    output += line[i++];
+  }
+  return output;
+}
+
 /** Normalize the two legacy extensions before reorg parses the document.
  * Everything else (headings, properties, lists, links, tables and emphasis)
  * is parsed by reorg. Raw source blocks are never scanned as prose.
@@ -117,7 +153,7 @@ function normalizeOrg(source) {
       output.push('#+begin_src codetour-math', ...math, '#+end_src');
       continue;
     }
-    output.push(line);
+    output.push(normalizeInlineDollars(line));
   }
   return output.join('\n');
 }
@@ -174,6 +210,21 @@ const tourSchema = {
   }
 };
 
+// The browser entry emits delimiters; MathJax v4 performs the final typesetting.
+const mathDelimiters = { inlineMath: [['$', '$']], displayMath: [['$$', '$$']] };
+function mathContainer(source, display) {
+  let value = source.trim();
+  const classes = [display ? 'math-display-container' : 'math-inline-container'];
+  // Native environments are already complete TeX; preserve their structure.
+  if (display && /^\\begin\{/.test(value)) return element('div', { className: classes }, [textNode(value)]);
+  for (const [open, close] of [['$$', '$$'], ['\\[', '\\]'], ['\\(', '\\)']]) {
+    if (value.startsWith(open) && value.endsWith(close)) { value = value.slice(open.length, -close.length).trim(); break; }
+  }
+  return element(display ? 'div' : 'span', { className: classes }, [
+    element('span', { className: [display ? 'math-display' : 'math-inline'] }, [textNode(value)])
+  ]);
+}
+
 /** Trusted HAST transformations after sanitizing the reorg-generated HTML tree. */
 function rehypeTourFeatures() {
   return tree => {
@@ -184,9 +235,9 @@ function rehypeTourFeatures() {
       }
       const classes = node.properties?.className || [];
       if (node.tagName === 'span' && classes.includes('math-inline')) {
-        node.children = [textNode('\\(' + nodeText(node) + '\\)')];
-        return node;
+        return mathContainer(nodeText(node), false);
       }
+      if (node.tagName === 'div' && classes.includes('math-display')) return mathContainer(nodeText(node), true);
       if (node.tagName === 'pre') {
         // Undo Org's comma escapes only within source blocks.
         for (const child of node.children || []) {
@@ -196,7 +247,7 @@ function rehypeTourFeatures() {
         }
         const code = node.children.find(child => child.type === 'element' && child.tagName === 'code');
         const languages = code?.properties?.className || [];
-        if (languages.includes('language-codetour-math')) return element('div', { className: ['math-display'] }, [textNode(nodeText(code))]);
+        if (languages.includes('language-codetour-math') || languages.includes('language-math')) return mathContainer(nodeText(code), true);
         if (languages.includes('language-mermaid')) {
           return element('figure', { className: ['mermaid-block'] }, [
             element('div', { className: ['diagram-canvas'], role: 'img', ariaLabel: 'Mermaid diagram' }, [element('span', { className: ['render-status'] }, [textNode('Rendering diagram…')])]),
@@ -219,6 +270,7 @@ const orgRenderer = unified()
   .use(reorgRehype)
   .use(rehypeSanitize, tourSchema)
   .use(rehypeTourFeatures)
+  .use(rehypeMathjaxBrowser, { tex: mathDelimiters })
   .use(rehypeStringify);
 
 /** Render a source string or an already-parsed page OAST through unified/reorg. */
@@ -234,7 +286,7 @@ function loadMath(){
  mathPromise=new Promise((resolve,reject)=>{
   window.MathJax={
    loader:{load:['ui/safe']},
-   tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]'],['$$','$$']],processEscapes:true,processEnvironments:true},
+   tex:{...mathDelimiters,processEscapes:true,processEnvironments:true},
    svg:{fontCache:'none'},
    startup:{typeset:false},
    options:{skipHtmlTags:['script','noscript','style','textarea','pre','code','mjx-container'],ignoreHtmlClass:'mermaid-block'}
@@ -256,9 +308,10 @@ export function enhanceStory(root){
    try{const diagram=pele.mount(canvas,source,{fontSize:14,padding:12,zoom:false,links:false,images:false,onError:showError});mounted.push(diagram);}catch(error){canvas.replaceChildren();showError(error);}
   }
  }).catch(error=>{if(disposed)return;for(const figure of diagrams){figure.querySelector('.diagram-canvas').textContent='Could not load the diagram renderer.';figure.querySelector('details').open=true;const note=figure.querySelector('.diagram-error');note.textContent=error.message;note.hidden=false;}});
- if(root.querySelector('.math-inline,.math-display'))loadMath().then(async mj=>{
+ const mathElements=[...root.querySelectorAll('.math-inline-container,.math-display-container')];
+ if(mathElements.length)loadMath().then(async mj=>{
   if(disposed||!root.isConnected)return;
-  await mj.typesetPromise([root]);
+  await mj.typesetPromise(mathElements);
   if(disposed||!root.isConnected)mj.typesetClear([root]);
  }).catch(error=>{if(disposed)return;const note=document.createElement('p');note.className='math-error';note.setAttribute('role','status');note.textContent='Could not render the equation. The LaTeX source is preserved. '+error.message;root.append(note);});
  return ()=>{disposed=true;for(const diagram of mounted)diagram.destroy();window.MathJax?.typesetClear?.([root]);};
@@ -499,7 +552,7 @@ function startViewer() {
   $('story-scroll').addEventListener('pointerdown', event => { down = { x: event.clientX, y: event.clientY, top: $('story-scroll').scrollTop, time: Date.now() }; });
   $('story-scroll').addEventListener('pointerup', event => {
     const p = down; down = null; if (!p) return;
-    if (event.target.closest('a,button,input,code,pre,summary,.mermaid-block,.math-display,mjx-container') || getSelection()?.toString() || Date.now() - p.time > 450 || Math.hypot(event.clientX - p.x, event.clientY - p.y) > 8 || Math.abs($('story-scroll').scrollTop - p.top) > 3) return;
+    if (event.target.closest('a,button,input,code,pre,summary,.mermaid-block,.math-display-container,mjx-container') || getSelection()?.toString() || Date.now() - p.time > 450 || Math.hypot(event.clientX - p.x, event.clientY - p.y) > 8 || Math.abs($('story-scroll').scrollTop - p.top) > 3) return;
     go(index + 1);
   });
   $('story-scroll').addEventListener('pointercancel', () => { down = null; });

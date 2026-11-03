@@ -81,7 +81,21 @@ test('import map owns the pinned browser dependencies and matches test dependenc
  const {readFile}=await import('node:fs/promises');
  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');const map=JSON.parse(html.match(/<script type="importmap">([\s\S]*?)<\/script>/)[1]).imports;
  const pkg=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8'));
- for(const [name,version] of Object.entries(pkg.devDependencies))assert(map[name].includes('@'+version+'/'));
+ for(const [name,version] of Object.entries(pkg.devDependencies))assert((map[name] || map[name+'/browser']).includes('@'+version+'/'));
  for(const name of ['unified','@orgajs/reorg-parse','@orgajs/reorg-rehype','rehype-sanitize','rehype-stringify','shiki','pele','mathjax'])assert(map[name]);
  const script=await readFile(new URL('../script.js',import.meta.url),'utf8');assert(!/import\(['"]https:/.test(script));assert(script.includes("import.meta.resolve('mathjax')"));
+});
+
+test('dollar math is prepared by rehype-mathjax/browser without double delimiters',()=>{
+ const inline=renderOrg(String.raw`A claim $x = y * z = w$ is explicit.`);assert(inline.includes('math-inline-container'));assert(inline.includes('$x = y * z = w$'));assert(!inline.includes('\\('));assert(!inline.includes('<strong>'));
+ const display=renderOrg('$$\n\\frac{a}{b}\n$$');assert(display.includes('math-display-container'));assert(display.includes('$$\\frac{a}{b}$$'));assert(!display.includes('$$$$'));
+ const src=renderOrg('#+begin_src math\nx^2\n#+end_src');assert(src.includes('$$x^2$$'));
+});
+test('currency, escaped dollars, and dollars inside code remain outside math containers',()=>{
+ for(const s of ['The cost is $5 and $10.',String.raw`A literal \$ symbol.`, '=price $x$=', '#+begin_src text\n$x$\n$$y$$\n#+end_src'])assert(!renderOrg(s).includes('math-inline-container'),s);
+});
+test('standard double-bracket approximation preserves TeX through the pipeline',()=>{
+ const html=renderOrg(String.raw`$$
+\lbrack\!\lbrack c\rbrack\!\rbrack
+$$`);assert(html.includes('\\lbrack\\!\\lbrack'));assert(html.includes('\\rbrack\\!\\rbrack'));assert(!html.includes('\\llbracket'));assert(!html.includes('\\rrbracket'));
 });
